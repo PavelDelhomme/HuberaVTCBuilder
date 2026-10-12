@@ -1,5 +1,11 @@
 import api from '@/lib/api';
 import axios from 'axios';
+import {
+  hasUsablePressAccessToken,
+  onHuberaCloudHost,
+  repairPressTokenStorage,
+} from '@/lib/huberaSuiteAuth';
+import { isAccessTokenUsable, jwtTokenType } from '@/lib/jwtUtils';
 
 export interface LoginCredentials {
   email: string;
@@ -25,6 +31,45 @@ export interface User {
 }
 
 class AuthService {
+  repairTokenStorage(): void {
+    repairPressTokenStorage();
+  }
+
+  /**
+   * Cookie suite (Cloudity) → JWT Press via /api/auth/suite-bridge/.
+   * N'utilise pas les JWT Cloudity comme Bearer Press.
+   */
+  async trySuiteBridge(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    if (!onHuberaCloudHost()) return false;
+    repairPressTokenStorage();
+    if (hasUsablePressAccessToken()) return true;
+
+    try {
+      const response = await api.post(
+        '/auth/suite-bridge/',
+        {},
+        { withCredentials: true, _skipAuthInterceptor: true } as any
+      );
+      const access = response.data?.tokens?.access;
+      const refresh = response.data?.tokens?.refresh;
+      if (!access || jwtTokenType(access) === 'refresh') {
+        return false;
+      }
+      localStorage.setItem('token', access);
+      if (refresh && jwtTokenType(refresh) !== 'access') {
+        localStorage.setItem('refresh_token', refresh);
+      }
+      if (response.data?.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      localStorage.setItem('login_timestamp', Date.now().toString());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async login(credentials: LoginCredentials) {
     try {
       const response = await api.post('/auth/login/', credentials);
@@ -259,9 +304,13 @@ class AuthService {
 
   getToken(): string | null {
     if (typeof window === 'undefined') return null; // SSR safety
+    repairPressTokenStorage();
     const token = localStorage.getItem('token');
     // Vérifier que le token existe et n'est pas vide
     if (!token || token.trim() === '') {
+      return null;
+    }
+    if (jwtTokenType(token) === 'refresh') {
       return null;
     }
     return token;
@@ -273,8 +322,13 @@ class AuthService {
    */
   isTokenValid(): boolean {
     if (typeof window === 'undefined') return false; // SSR safety
+    repairPressTokenStorage();
     const token = this.getToken();
     if (!token) return false;
+    if (!isAccessTokenUsable(token)) {
+      const refresh = localStorage.getItem('refresh_token');
+      return !!(refresh && jwtTokenType(refresh) !== 'access');
+    }
     
     // Si on a un token, on considère qu'il est valide
     // La vérification réelle de l'expiration se fait côté serveur

@@ -27,6 +27,7 @@ class UserStatusMiddleware:
             '/api/auth/register-with-plan',
             '/api/auth/logout',  # Allow logout even if suspended
             '/api/auth/refresh',  # Allow token refresh even if expired - CRITICAL: Must be public
+            '/api/auth/suite-bridge',  # Cookie hubera_suite_auth → JWT Press
             '/api/auth/reset-password/request',
             '/api/auth/reset-password/reset',
             '/api/auth/reset-password/verify',

@@ -30,10 +30,17 @@ export default function AdminLayout({
           await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        // Vérifier d'abord si le token existe
-        const token = authService.getToken()
+        authService.repairTokenStorage()
+
+        // Vérifier d'abord si le token existe (sinon pont cookie suite Hubera)
+        let token = authService.getToken()
         if (!token) {
-          // Pas de token, sauvegarder l'URL et rediriger vers login
+          const bridged = await authService.trySuiteBridge()
+          if (bridged) {
+            token = authService.getToken()
+          }
+        }
+        if (!token) {
           authService.saveRedirectUrl()
           router.push('/login')
           return

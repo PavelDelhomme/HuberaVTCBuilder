@@ -5,11 +5,14 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { FeaturesProvider } from '@/contexts/FeaturesContext'
 import AnalyticsProvider from '@/components/shared/AnalyticsProvider'
 import { ReconnectProvider, useReconnect } from '@/contexts/ReconnectContext'
+import authService from '@/services/auth.service'
 
 function ProvidersContent({ children }: { children: React.ReactNode }) {
   const { showReconnectModal } = useReconnect()
 
   useEffect(() => {
+    authService.repairTokenStorage()
+
     // Exposer la fonction pour que l'intercepteur API puisse l'appeler
     if (typeof window !== 'undefined') {
       window.__showReconnectModal = showReconnectModal

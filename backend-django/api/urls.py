@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 from tenants.views import (
     TenantViewSet, UserViewSet, UserProfileView,
     FeatureViewSet, UserFeatureViewSet,
-    login_view, quick_reconnect_view, register_view, register_with_plan_view, logout_view, refresh_token_view,
+    login_view, quick_reconnect_view, suite_bridge_view, register_view, register_with_plan_view, logout_view, refresh_token_view,
     request_password_reset_view, reset_password_view, verify_reset_token_view,
     verify_invitation_token_view, complete_invitation_view
 )
@@ -161,6 +161,8 @@ urlpatterns = [
     path('auth/login', login_view, name='login'),
     path('auth/quick-reconnect/', quick_reconnect_view, name='quick-reconnect-slash'),
     path('auth/quick-reconnect', quick_reconnect_view, name='quick-reconnect'),
+    path('auth/suite-bridge/', suite_bridge_view, name='suite-bridge-slash'),
+    path('auth/suite-bridge', suite_bridge_view, name='suite-bridge'),
     path('auth/refresh/', refresh_token_view, name='refresh-slash'),
     path('auth/refresh', refresh_token_view, name='refresh'),
     path('auth/logout/', logout_view, name='logout-slash'),

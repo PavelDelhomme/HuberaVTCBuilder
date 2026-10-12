@@ -1459,6 +1459,81 @@ def quick_reconnect_view(request):
     )
 
 
+def _hubera_cloud_host(request) -> bool:
+    host = (request.get_host() or '').split(':')[0].lower()
+    return host == 'hubera.cloud' or host.endswith('.hubera.cloud')
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def suite_bridge_view(request):
+    """
+    Émet des JWT Press lorsqu'un cookie suite Hubera (Cloudity) est présent.
+    Ne valide pas le JWT Cloudity côté serveur — le cookie same-site suffit pour lier l'email.
+    """
+    if request.method == 'OPTIONS':
+        response = Response({}, status=status.HTTP_200_OK)
+        add_cors_headers(response, request)
+        return response
+
+    if not _hubera_cloud_host(request):
+        response = Response(
+            {'error': 'Suite bridge unavailable on this host'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+        add_cors_headers(response, request)
+        return response
+
+    from tenants.hubera_suite import read_suite_auth_from_request, suite_session_usable
+
+    suite = read_suite_auth_from_request(request)
+    if not suite_session_usable(suite):
+        response = Response(
+            {'error': 'No usable Hubera suite session'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+        add_cors_headers(response, request)
+        return response
+
+    email = (suite.get('email') or '').strip().lower()
+    try:
+        user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        response = Response(
+            {'error': 'No Press account for this suite email'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+        add_cors_headers(response, request)
+        return response
+
+    if user.status == 'suspended':
+        response = Response(
+            {'error': 'Compte suspendu', 'status': 'suspended'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+        add_cors_headers(response, request)
+        return response
+    if user.status == 'inactive' or not user.is_active_user():
+        response = Response(
+            {'error': 'Compte non actif', 'status': user.status},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+        add_cors_headers(response, request)
+        return response
+
+    refresh = RefreshToken.for_user(user)
+    success_response = Response({
+        'user': UserSerializer(user).data,
+        'tokens': {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        },
+        'source': 'hubera_suite_auth',
+    })
+    add_cors_headers(success_response, request)
+    return success_response
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):

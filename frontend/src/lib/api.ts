@@ -1,5 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, CancelTokenSource, AxiosHeaders } from 'axios';
 import authService from '@/services/auth.service';
+import { repairPressTokenStorage } from '@/lib/huberaSuiteAuth';
+import { jwtTokenType } from '@/lib/jwtUtils';
 
 // Déclaration pour les flags globaux
 declare global {
@@ -57,6 +59,16 @@ export const api = axios.create({
 
 // Intercepteur pour ajouter le token et gérer FormData
 api.interceptors.request.use((config) => {
+  repairPressTokenStorage();
+
+  const isSuiteBridge = config.url?.includes('/auth/suite-bridge');
+  if (isSuiteBridge && config.headers) {
+    delete config.headers.Authorization;
+    if (config.headers instanceof AxiosHeaders) {
+      config.headers.delete('Authorization');
+    }
+  }
+
   // Ne pas envoyer le token pour les endpoints analytics qui acceptent AllowAny
   // Cela évite les erreurs 403 si le token est invalide/expiré
   const isAnalyticsEndpoint = config.url?.includes('/analytics/block-usage/');
@@ -95,7 +107,7 @@ api.interceptors.request.use((config) => {
     const existingAuth = config.headers?.Authorization;
     if (!existingAuth) {
       const token = localStorage.getItem('token');
-      if (token) {
+      if (token && jwtTokenType(token) !== 'refresh') {
         if (!config.headers) {
           config.headers = {} as any;
         }
