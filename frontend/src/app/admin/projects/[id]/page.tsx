@@ -13,6 +13,7 @@ import blocksService from '@/services/blocks.service'
 import { useNavigationLoading } from '@/hooks/useNavigationLoading'
 import ToggleSwitch from '@/components/shared/ToggleSwitch'
 import { ALL_PUBLIC_PAGES, createPageInSystem } from '@/scripts/create-public-pages'
+import { huberaLandingUrl } from '@/lib/huberaLandingUrl'
 
 export default function ProjectDetailPage() {
   const router = useRouter()
@@ -695,7 +696,11 @@ export default function ProjectDetailPage() {
   return (
     <AdminLayout
       title={project.name}
-      subtitle={`Gérer les pages du projet ${project.slug}`}
+      subtitle={
+        project.metadata?.kind === 'hubera-product-landing' && project.domain
+          ? `Landing ${project.domain}`
+          : `Gérer les pages du projet ${project.slug}`
+      }
       headerActions={
         <button
           onClick={handleEditProject}
@@ -735,6 +740,14 @@ export default function ProjectDetailPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               />
             </div>
+            {project.metadata?.kind === 'hubera-product-landing' && project.domain && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Domaine
+                </label>
+                <p className="px-3 py-2 text-gray-900 dark:text-gray-100">{project.domain}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Statut du Projet
@@ -1197,8 +1210,12 @@ export default function ProjectDetailPage() {
                           onClick={(e) => {
                             e.stopPropagation()
                             if (parent.page_type === 'public') {
-                              // Public page: use current domain
-                              window.open(`/${parentPage.slug === 'home' ? '' : parentPage.slug}`, '_blank')
+                              const landing = huberaLandingUrl(project, parentPage.slug)
+                              if (landing) {
+                                window.open(landing, '_blank')
+                              } else {
+                                window.open(`/${parentPage.slug === 'home' ? '' : parentPage.slug}`, '_blank')
+                              }
                             } else if (parent.page_type === 'tenant' && project?.tenant_domain) {
                               // Tenant page: use tenant domain
                               const protocol = window.location.protocol
@@ -1456,7 +1473,8 @@ export default function ProjectDetailPage() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      window.open(`/${childPageData.slug}`, '_blank')
+                                      const landing = huberaLandingUrl(project, childPageData.slug)
+                                      window.open(landing || `/${childPageData.slug}`, '_blank')
                                     }}
                                     className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium transition-colors flex items-center gap-1.5"
                                     title="Voir en public"
@@ -1700,8 +1718,12 @@ export default function ProjectDetailPage() {
                               e.stopPropagation()
                               const pageProjectPage = project?.pages?.find((p: ProjectPage) => p.page_slug === page.slug && p.page_type === 'public')
                               if (pageProjectPage) {
-                                // Public page: use current domain
-                                window.open(`/${page.slug === 'home' ? '' : page.slug}`, '_blank')
+                                const landing = huberaLandingUrl(project, page.slug)
+                                if (landing) {
+                                  window.open(landing, '_blank')
+                                } else {
+                                  window.open(`/${page.slug === 'home' ? '' : page.slug}`, '_blank')
+                                }
                               } else {
                                 // Try tenant page
                                 const tenantPageProjectPage = project?.pages?.find((p: ProjectPage) => {

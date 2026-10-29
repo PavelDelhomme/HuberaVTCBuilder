@@ -2,29 +2,9 @@
 """Crée un projet HuberaPress par produit (landing éditable, style WordPress)."""
 from django.core.management.base import BaseCommand
 from django_tenants.utils import schema_context
+from projects.hubera_landings import SITES
 from projects.models import Project, ProjectPage
 from tenants.models import Tenant
-
-SITES = [
-    {"slug": "hubera-id", "name": "Hubera ID", "domain": "id.hubera.cloud", "login": "/migrate.html", "admin": "/migrate.html"},
-    {"slug": "hubera-mail", "name": "Hubera Mail", "domain": "mail.hubera.cloud", "login": "/app/mail/", "admin": "/4dm1n"},
-    {"slug": "hubera-drive", "name": "Hubera Drive", "domain": "drive.hubera.cloud", "login": "/app/drive/", "admin": "/4dm1n"},
-    {"slug": "hubera-pass", "name": "Hubera Pass", "domain": "pass.hubera.cloud", "login": "/app/pass", "admin": "/4dm1n"},
-    {"slug": "hubera-calendar", "name": "Hubera Calendar", "domain": "calendar.hubera.cloud", "login": "/app/calendar", "admin": "/4dm1n"},
-    {"slug": "hubera-contacts", "name": "Hubera Contacts", "domain": "contacts.hubera.cloud", "login": "/app/contacts", "admin": "/4dm1n"},
-    {"slug": "hubera-notes", "name": "Hubera Notes", "domain": "notes.hubera.cloud", "login": "/app/notes", "admin": "/4dm1n"},
-    {"slug": "hubera-photos", "name": "Hubera Photos", "domain": "photos.hubera.cloud", "login": "/app/photos", "admin": "/4dm1n"},
-    {"slug": "hubera-office", "name": "Hubera Office", "domain": "office.hubera.cloud", "login": "/app", "admin": "/4dm1n"},
-    {"slug": "hubera-maps", "name": "Hubera Maps", "domain": "maps.hubera.cloud", "login": "/app/", "admin": "/app/"},
-    {"slug": "hubera-music", "name": "Hubera Music", "domain": "music.hubera.cloud", "login": "/app", "admin": "/app"},
-    {"slug": "hubera-fuel", "name": "Hubera Fuel", "domain": "fuel.hubera.cloud", "login": "/auth", "admin": "/admin"},
-    {"slug": "hubera-jobs", "name": "Hubera Jobs", "domain": "jobs.hubera.cloud", "login": "/login", "admin": "/backoffice"},
-    {"slug": "hubera-budget", "name": "Hubera Budget", "domain": "budget.hubera.cloud", "login": "/app/", "admin": "/app/"},
-    {"slug": "hubera-tasks", "name": "Hubera Tasks", "domain": "tasks.hubera.cloud", "login": "/app/", "admin": "/app/"},
-    {"slug": "hubera-stream", "name": "Hubera Stream", "domain": "stream.hubera.cloud", "login": "/app/", "admin": "/app/"},
-    {"slug": "hubera-press", "name": "HuberaPress", "domain": "press.hubera.cloud", "login": "/login", "admin": "/admin/dashboard"},
-    {"slug": "hubera-vtcbuilder", "name": "VTCBuilder", "domain": "vtcbuilder.hubera.cloud", "login": "/login", "admin": "/admin/dashboard"},
-]
 
 
 class Command(BaseCommand):

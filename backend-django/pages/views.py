@@ -12,6 +12,32 @@ from .models import Page
 from .serializers import PageSerializer, PageListSerializer, PageContentSerializer
 
 
+def _hubera_publish_decision(user, request):
+    """Contrôle HuberaPress sur le tenant public. None si la requête n’est pas concernée."""
+    import os
+
+    from projects.hubera_publish import PUBLIC_TENANT, gate_public_publish
+
+    tenant = getattr(user, "tenant", None)
+    schema = getattr(tenant, "schema_name", "") or ""
+    site_slug = ""
+    data = getattr(request, "data", None)
+    if data is not None and hasattr(data, "get"):
+        site_slug = str(data.get("site_slug") or "").strip()
+    if schema != PUBLIC_TENANT and not site_slug:
+        return None
+    return gate_public_publish(
+        {
+            "email": getattr(user, "email", "") or "",
+            "role": getattr(user, "role", "") or "",
+            "tenant_schema": schema,
+            "active": getattr(user, "status", "") == "active",
+        },
+        site_slug=site_slug or None,
+        admin=os.environ.get("CMS_ADMIN_EMAIL"),
+    )
+
+
 class PageViewSet(CORSMixin, viewsets.ModelViewSet):
     """ViewSet for managing pages"""
     permission_classes = [AllowAny]  # Allow unauthenticated access for list, but check in methods
@@ -157,6 +183,12 @@ class PageViewSet(CORSMixin, viewsets.ModelViewSet):
                     return response
                 
                 validated_data = serializer.validated_data
+
+                # Un compte sans droit sur le tenant public ne publie pas à la création.
+                if validated_data.get("status") == "published":
+                    decision = _hubera_publish_decision(user, request)
+                    if decision is not None and not decision["allowed"]:
+                        validated_data["status"] = "draft"
                 
                 # Auto-generate slug if not provided
                 if not validated_data.get('slug') and validated_data.get('title'):
@@ -228,6 +260,16 @@ class PageViewSet(CORSMixin, viewsets.ModelViewSet):
         
         if hasattr(user, 'tenant') and user.tenant:
             try:
+                wants_publish = str(request.data.get("status") or "") == "published"
+                if wants_publish:
+                    decision = _hubera_publish_decision(user, request)
+                    if decision is not None and not decision["allowed"]:
+                        response = Response(
+                            {"error": decision["error"]},
+                            status=decision["status"],
+                        )
+                        add_cors_headers(response, request)
+                        return response
                 with tenant_context(user.tenant):
                     partial = kwargs.pop('partial', False)
                     pk = kwargs.get('pk')
@@ -310,6 +352,14 @@ class PageViewSet(CORSMixin, viewsets.ModelViewSet):
         
         user = request.user
         if hasattr(user, 'tenant') and user.tenant:
+            decision = _hubera_publish_decision(user, request)
+            if decision is not None and not decision["allowed"]:
+                response = Response(
+                    {"error": decision["error"]},
+                    status=decision["status"],
+                )
+                add_cors_headers(response, request)
+                return response
             try:
                 with tenant_context(user.tenant):
                     page = Page.objects.get(pk=pk, tenant=user.tenant)
@@ -317,7 +367,10 @@ class PageViewSet(CORSMixin, viewsets.ModelViewSet):
                     if not page.published_at:
                         page.published_at = timezone.now()
                     page.save()
-                    response = Response({'status': 'Page published'})
+                    body = {'status': 'Page published'}
+                    if decision and decision.get("domain"):
+                        body["domain"] = decision["domain"]
+                    response = Response(body)
                     add_cors_headers(response, request)
                     return response
             except Page.DoesNotExist:

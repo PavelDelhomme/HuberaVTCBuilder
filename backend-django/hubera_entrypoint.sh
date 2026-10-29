@@ -33,9 +33,15 @@ user.role = 'super-admin'
 user.status = 'active'
 if password:
     user.set_password(password)
+from tenants.models import Tenant
+public = Tenant.objects.filter(schema_name='public').first()
+if public is not None:
+    user.tenant = public
 user.save()
-print('admin', email, 'created' if created else 'updated')
+print('admin', email, 'tenant', getattr(public, 'schema_name', 'missing'), 'created' if created else 'updated')
 PY
+
+python manage.py init_hubera_landings
 
 echo "Hubera CMS — gunicorn"
 exec gunicorn \

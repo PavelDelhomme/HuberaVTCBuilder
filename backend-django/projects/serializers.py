@@ -77,6 +77,26 @@ class ProjectSerializer(serializers.ModelSerializer):
                 pass
         return None
     
+    def _lock_landing_domain(self, validated_data, instance=None):
+        """Une landing Hubera garde le domaine du catalogue."""
+        from projects.hubera_publish import catalogue_domain
+
+        slug = validated_data.get("slug") or (instance.slug if instance is not None else None)
+        expected = catalogue_domain(slug) if slug else None
+        if not expected:
+            return validated_data
+        validated_data["domain"] = expected
+        current = {}
+        if instance is not None and isinstance(instance.metadata, dict):
+            current.update(instance.metadata)
+        incoming = validated_data.get("metadata")
+        if isinstance(incoming, dict):
+            current.update(incoming)
+        current["kind"] = "hubera-product-landing"
+        current["host"] = expected
+        validated_data["metadata"] = current
+        return validated_data
+
     def create(self, validated_data):
         """Create project with tenant_id handling"""
         # Récupérer tenant_id depuis initial_data (avant validation)
@@ -84,6 +104,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         if tenant_id:
             from tenants.models import Tenant
             validated_data['tenant'] = Tenant.objects.get(id=tenant_id)
+        self._lock_landing_domain(validated_data)
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
@@ -96,6 +117,7 @@ class ProjectSerializer(serializers.ModelSerializer):
                 validated_data['tenant'] = Tenant.objects.get(id=tenant_id)
             else:
                 validated_data['tenant'] = None
+        self._lock_landing_domain(validated_data, instance)
         return super().update(instance, validated_data)
 
 
